@@ -2,12 +2,12 @@ import os
 from typing import get_args
 
 import streamlit as st
-from dotenv import load_dotenv  # NEW: allow local .env usage
+from dotenv import load_dotenv
 
 # Local modules
 from core.types import ModelName
 from core.llm import ensure_api_key
-from core.pipeline import generate_initial_function
+from core.pipeline import generate_documented_function
 
 # -----------------------------
 # Page configuration
@@ -43,7 +43,7 @@ st.sidebar.caption("Models ordered from cheaper → more expensive")
 # Main content
 # -----------------------------
 st.title("🐍 PyFunc Generator")
-st.caption("Mini-agent that generates Python functions with documentation and tests.")
+st.caption("Generate a documented Python function (docstring + type hints) and, next, tests.")
 
 description = st.text_area(
     "Describe the function you want to generate",
@@ -52,21 +52,18 @@ description = st.text_area(
 )
 
 col1, col2 = st.columns([1, 1])
-run = col1.button("🚀 Generate")
+run = col1.button("📘 Generate documented function")
 clear = col2.button("🧹 Clear")
 
 # -----------------------------
 # Session state
 # -----------------------------
-if "initial_fn" not in st.session_state:
-    st.session_state.initial_fn = ""
 if "doc_fn" not in st.session_state:
     st.session_state.doc_fn = ""
 if "tests" not in st.session_state:
     st.session_state.tests = ""
 
 if clear:
-    st.session_state.initial_fn = ""
     st.session_state.doc_fn = ""
     st.session_state.tests = ""
     st.experimental_rerun()
@@ -98,34 +95,35 @@ except Exception:
     st.stop()
 
 # -----------------------------
-# Generate (initial function only for now)
+# Generate documented function
 # -----------------------------
 if run:
     if not description.strip():
         st.warning("Please write a short description of the function.")
     else:
-        with st.spinner("Generating initial function..."):
-            st.session_state.initial_fn = generate_initial_function(
+        with st.spinner("Generating documented function..."):
+            st.session_state.doc_fn = generate_documented_function(
                 description=description,
                 model=model,
                 temperature=temperature,
-                style_extras="",  # future: toggles for type hints / docstring style
+                style_extras="",  # future: toggles for docstring style, etc.
             )
+        st.success("Documented function generated.")
 
 # -----------------------------
 # Results area (tabs)
 # -----------------------------
 st.markdown("---")
-tabs = st.tabs(["🔧 Initial Function", "📘 Documented Function", "✅ Tests"])
+tabs = st.tabs(["📘 Documented Function", "✅ Tests"])
 
 with tabs[0]:
-    if st.session_state.initial_fn:
-        st.code(st.session_state.initial_fn, language="python")
+    if st.session_state.doc_fn:
+        st.code(st.session_state.doc_fn, language="python")
     else:
-        st.info("No results yet. Generate a function to see the output here.")
+        st.info("No documented function yet. Click '📘 Generate documented function'.")
 
 with tabs[1]:
-    st.info("Coming next: documented function (docstrings, type hints, examples).")
-
-with tabs[2]:
-    st.info(f"Coming next: {test_framework} tests for the generated function.")
+    if st.session_state.tests:
+        st.code(st.session_state.tests, language="python")
+    else:
+        st.info(f"Coming next: {test_framework} tests for the documented function.")

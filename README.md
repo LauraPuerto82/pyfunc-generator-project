@@ -1,11 +1,11 @@
 # PyFunc Generator (mini-agent) 🐍
 
 Generate **Python functions** from a natural language description, and
-return: 1) initial function, 2) documented function (docstrings + type
-hints), 3) **tests** (unittest/pytest).
+return: 1) documented function (docstrings + type hints), 2) **tests**
+(unittest/pytest).
 
 **Stack:** Streamlit + LiteLLM (OpenAI)\
-**Status:** MVP in progress (initial commit with minimal UI).
+**Status:** MVP in progress (UI working, function + docstrings).
 
 ## What does this project showcase?
 
@@ -33,6 +33,19 @@ mkdir -p .streamlit
 
 streamlit run app.py
 ```
+
+## API Key configuration
+
+-   **Local:** create a `.env` file with:
+
+        OPENAI_API_KEY=your_api_key
+
+    (this file is ignored by git and not pushed to repo).
+
+-   **Cloud (Streamlit):** configure the key in `Settings → Secrets`
+    (TOML format).
+
+The code automatically detects if it's running locally or in the cloud.
 
 ## Roadmap
 
