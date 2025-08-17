@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 # Local modules
 from core.types import ModelName
 from core.llm import ensure_api_key
-from core.pipeline import generate_documented_function
+from core.pipeline import generate_documented_function, generate_tests
 
 # -----------------------------
 # Page configuration
@@ -43,7 +43,7 @@ st.sidebar.caption("Models ordered from cheaper → more expensive")
 # Main content
 # -----------------------------
 st.title("🐍 PyFunc Generator")
-st.caption("Generate a documented Python function (docstring + type hints) and, next, tests.")
+st.caption("Generate a documented Python function (docstring + type hints) and tests.")
 
 description = st.text_area(
     "Describe the function you want to generate",
@@ -51,9 +51,10 @@ description = st.text_area(
     height=110,
 )
 
-col1, col2 = st.columns([1, 1])
+col1, col2, col3 = st.columns([1, 1, 1])
 run = col1.button("📘 Generate documented function")
-clear = col2.button("🧹 Clear")
+gen_tests_btn = col2.button("✅ Generate tests")
+clear = col3.button("🧹 Clear")
 
 # -----------------------------
 # Session state
@@ -66,7 +67,7 @@ if "tests" not in st.session_state:
 if clear:
     st.session_state.doc_fn = ""
     st.session_state.tests = ""
-    st.experimental_rerun()
+    st.rerun()
 
 # -----------------------------
 # API key setup: .env (local) → env var → st.secrets (Cloud)
@@ -111,6 +112,22 @@ if run:
         st.success("Documented function generated.")
 
 # -----------------------------
+# Generate tests
+# -----------------------------
+if gen_tests_btn:
+    if not st.session_state.doc_fn.strip():
+        st.warning("Generate the documented function first.")
+    else:
+        with st.spinner(f"Generating {test_framework} tests..."):
+            st.session_state.tests = generate_tests(
+                documented_code=st.session_state.doc_fn,
+                model=model,
+                temperature=temperature,
+                framework=test_framework,
+            )
+        st.success("Tests generated.")
+
+# -----------------------------
 # Results area (tabs)
 # -----------------------------
 st.markdown("---")
@@ -126,4 +143,4 @@ with tabs[1]:
     if st.session_state.tests:
         st.code(st.session_state.tests, language="python")
     else:
-        st.info(f"Coming next: {test_framework} tests for the documented function.")
+        st.info(f"No tests yet. Click '✅ Generate tests'.")
