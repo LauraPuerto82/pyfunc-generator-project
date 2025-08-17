@@ -1,23 +1,39 @@
 # PyFunc Generator (mini-agent) 🐍
 
-Generate **Python functions** from a natural language description, and
-return: 1) documented function (docstrings + type hints), 2) **tests**
-(unittest/pytest).
+Mini-agent LLM app to generate **Python functions** from natural language.  
+It returns:  
+1. Documented function (with docstrings + type hints)  
+2. Unit tests (**unittest/pytest**)  
 
-**Stack:** Streamlit + LiteLLM (OpenAI)\
-**Status:** MVP in progress (UI working, function + docstrings).
+**Stack:** Streamlit + LiteLLM (OpenAI)  
+**Status:** Deployed ✅ → [Live Demo](https://laurapuerto-pyfunc-generator.streamlit.app/)
 
-## What does this project showcase?
+---
 
--   **Applied LLM app** with a prompt pipeline (function → documentation
-    → tests).
--   Best practices: type hints, PEP8 style, separated tests, secrets
-    management.
--   Simple and usable UI, ideal for portfolio demonstration.
+## ✨ What does this project showcase?
 
-## How to run locally
+- **Applied LLM app** with a prompt pipeline (function → documentation → tests).  
+- Best practices: type hints, PEP8 style, separated tests, secrets management.  
+- Simple and usable UI, ideal for portfolio demonstration.  
 
-``` bash
+---
+
+## 🚀 Demo Screenshots
+
+<p align="center">
+  <img src="screenshots/sidebar.png" alt="Sidebar Screenshot" width="45%"/>
+</p>
+
+<p align="center">
+  <img src="screenshots/code_panel.png" alt="Code Panel Screenshot" width="90%"/>
+</p>
+
+---
+
+
+## 🛠 How to run locally
+
+```bash
 # activate venv (already created)
 # Windows (PowerShell)
 venv\Scripts\activate
@@ -34,28 +50,35 @@ mkdir -p .streamlit
 streamlit run app.py
 ```
 
-## API Key configuration
+---
 
--   **Local:** create a `.env` file with:
+## 🔑 API Key configuration
 
-        OPENAI_API_KEY=your_api_key
+- **Local:** create a `.env` file with:
 
-    (this file is ignored by git and not pushed to repo).
+```
+OPENAI_API_KEY=your_api_key
+```
 
--   **Cloud (Streamlit):** configure the key in `Settings → Secrets`
-    (TOML format).
+(this file is ignored by git and not pushed to repo).  
 
-The code automatically detects if it's running locally or in the cloud.
+- **Cloud (Streamlit):** configure the key in `Settings → Secrets` (TOML format).  
 
-## Roadmap
+The code automatically detects if it's running locally or in the cloud.  
 
--   [x] MVP: pipeline function → doc → tests
--   [x] Selector unittest/pytest
--   [x] File download (.py)
--   [x] Syntax validation (AST) without execution
--   [x] Docstring styles (Google/NumPy)
--   [ ] Deploy on Streamlit Cloud + README with screenshots
+---
 
-## License
+## 📌 Roadmap
+
+- [x] MVP: pipeline function → doc → tests  
+- [x] Selector unittest/pytest  
+- [x] File download (.py)  
+- [x] Syntax validation (AST) without execution  
+- [x] Docstring styles (Google/NumPy)  
+- [x] Deploy on Streamlit Cloud + README with screenshots  
+
+---
+
+## 📜 License
 
 MIT
