@@ -1,66 +1,96 @@
-import os
-import re  
 from typing import get_args
-
 import streamlit as st
-from dotenv import load_dotenv
 
 # Local modules
 from core.types import ModelName
 from core.llm import ensure_api_key
 from core.pipeline import generate_documented_function, generate_tests
-from core.parsing import check_syntax 
+from core.parsing import check_syntax
+from core.secrets import get_openai_api_key
+from core.filenames import infer_function_name, sanitize_basename
 
-# -----------------------------
-# Helpers (filenames)
-# -----------------------------
-def _infer_function_name(code: str) -> str | None:
-    """Try to infer the first function name from the code."""
-    m = re.search(r"^\s*def\s+([a-zA-Z_]\w*)\s*\(", code, flags=re.MULTILINE)
-    return m.group(1) if m else None
-
-def _sanitize_basename(name: str, fallback: str = "generated_function") -> str:
-    """Sanitize a string to be used as a safe filename base."""
-    if not name:
-        name = fallback
-    name = name.lower()
-    name = re.sub(r"[^a-z0-9_]+", "_", name)
-    name = re.sub(r"_+", "_", name).strip("_")
-    return name or fallback
-
-# -----------------------------
-# Page configuration
-# -----------------------------
 st.set_page_config(page_title="PyFunc Generator", page_icon="🐍", layout="wide")
 
-# -----------------------------
-# Sidebar (options)
-# -----------------------------
-st.sidebar.header("⚙️ Options")
+# ---------- Small helpers ----------
+def init_state() -> None:
+    st.session_state.setdefault("doc_fn", "")
+    st.session_state.setdefault("doc_fn_ok", None)
+    st.session_state.setdefault("doc_fn_err", "")
+    st.session_state.setdefault("tests", "")
+    st.session_state.setdefault("tests_ok", None)
+    st.session_state.setdefault("tests_err", "")
 
-# Take model options from the ModelName Literal (keeps things in sync)
-model_options = list(get_args(ModelName))
+def clear_state() -> None:
+    for k in ("doc_fn", "doc_fn_err", "tests", "tests_err"):
+        st.session_state[k] = ""
+    st.session_state["doc_fn_ok"] = None
+    st.session_state["tests_ok"] = None
+    st.rerun()
 
-# Ordered from cheaper → more expensive (adjust texts if you change models)
-model_cost_info = {
-    "gpt-3.5-turbo": "💲 Cheapest (good for basic tasks)",
-    "o3-mini": "💲 Low cost, better than 3.5",
-    "gpt-4o-mini": "💲💲 Mid-tier, faster and accurate",
-    "gpt-4o": "💲💲💲 Highest quality, most expensive",
-}
+def render_sidebar():
+    st.sidebar.header("⚙️ Options")
+    model_options = list(get_args(ModelName))
+    model_cost_info = {
+        "gpt-3.5-turbo": "💲 Cheapest (good for basic tasks)",
+        "o3-mini": "💲 Low cost, better than 3.5",
+        "gpt-4o-mini": "💲💲 Mid-tier, faster and accurate",
+        "gpt-4o": "💲💲💲 Highest quality, most expensive",
+    }
+    model: ModelName = st.sidebar.selectbox("Model", model_options, index=0)  # type: ignore[assignment]
+    st.sidebar.caption(model_cost_info.get(model, ""))
+    temperature: float = st.sidebar.slider("Creativity (temperature)", 0.0, 1.0, 0.2, 0.05)
+    framework = st.sidebar.selectbox("Test framework", ["unittest", "pytest"], index=0)
+    st.sidebar.markdown("---")
+    st.sidebar.caption("Models ordered from cheaper → more expensive")
+    return model, temperature, framework
 
-model: ModelName = st.sidebar.selectbox("Model", model_options, index=0)  # type: ignore[assignment]
-st.sidebar.caption(model_cost_info.get(model, ""))
+def generate_doc_fn(description: str, model: ModelName, temperature: float) -> None:
+    with st.spinner("Generating documented function..."):
+        st.session_state.doc_fn = generate_documented_function(
+            description=description, model=model, temperature=temperature, style_extras=""
+        )
+    ok, err = check_syntax(st.session_state.doc_fn)
+    st.session_state.doc_fn_ok, st.session_state.doc_fn_err = ok, err
+    (st.success if ok else st.error)(
+        "Documented function generated. ✓ Syntax OK" if ok else f"Generated function has syntax errors: {err}"
+    )
 
-temperature: float = st.sidebar.slider("Creativity (temperature)", 0.0, 1.0, 0.2, 0.05)
-test_framework = st.sidebar.selectbox("Test framework", ["unittest", "pytest"], index=0)
+def generate_tests_fn(model: ModelName, temperature: float, framework: str) -> None:
+    with st.spinner(f"Generating {framework} tests..."):
+        st.session_state.tests = generate_tests(
+            documented_code=st.session_state.doc_fn, model=model, temperature=temperature, framework=framework
+        )
+    ok, err = check_syntax(st.session_state.tests)
+    st.session_state.tests_ok, st.session_state.tests_err = ok, err
+    (st.success if ok else st.error)(
+        "Tests generated. ✓ Syntax OK" if ok else f"Generated tests have syntax errors: {err}"
+    )
 
-st.sidebar.markdown("---")
-st.sidebar.caption("Models ordered from cheaper → more expensive")
+def render_code_tab(code: str, ok, err, download_label: str, filename_builder) -> None:
+    if ok is True:
+        st.caption("✅ Syntax: OK")
+    elif ok is False:
+        st.caption(f"❌ Syntax error: {err}")
+    st.code(code, language="python")
+    fname = filename_builder(code)
+    st.download_button(
+        label=download_label, data=code, file_name=fname, mime="text/x-python",
+        use_container_width=True, disabled=(ok is False),
+    )
 
-# -----------------------------
-# Main content
-# -----------------------------
+# ---------- Init + API key ----------
+init_state()
+OPENAI_API_KEY = get_openai_api_key()
+try:
+    ensure_api_key(OPENAI_API_KEY)
+except Exception:
+    st.error("Missing OpenAI API key. Set it in a local `.env` (OPENAI_API_KEY=...) "
+             "or in Streamlit Cloud → App → Settings → Secrets.")
+    st.stop()
+
+# ---------- Sidebar / Main ----------
+model, temperature, test_framework = render_sidebar()
+
 st.title("🐍 PyFunc Generator")
 st.caption("Generate a documented Python function (docstring + type hints) and tests.")
 
@@ -71,157 +101,51 @@ description = st.text_area(
 )
 
 col1, col2, col3 = st.columns([1, 1, 1])
-run = col1.button("📘 Generate documented function")
-gen_tests_btn = col2.button("✅ Generate tests")
-clear = col3.button("🧹 Clear")
-
-# -----------------------------
-# Session state
-# -----------------------------
-if "doc_fn" not in st.session_state:
-    st.session_state.doc_fn = ""
-if "doc_fn_ok" not in st.session_state:         
-    st.session_state.doc_fn_ok = None           
-if "doc_fn_err" not in st.session_state:        
-    st.session_state.doc_fn_err = ""
-
-if "tests" not in st.session_state:
-    st.session_state.tests = ""
-if "tests_ok" not in st.session_state:          
-    st.session_state.tests_ok = None
-if "tests_err" not in st.session_state:         
-    st.session_state.tests_err = ""
-
-if clear:
-    st.session_state.doc_fn = ""
-    st.session_state.doc_fn_ok = None           
-    st.session_state.doc_fn_err = ""             
-    st.session_state.tests = ""
-    st.session_state.tests_ok = None             
-    st.session_state.tests_err = ""              
-    st.rerun()
-
-# -----------------------------
-# API key setup: .env (local) → env var → st.secrets (Cloud)
-# -----------------------------
-def get_openai_api_key() -> str | None:
-    # 1) Load .env if present (local dev)
-    load_dotenv()
-    # 2) Try environment variable
-    key = os.getenv("OPENAI_API_KEY")
-    if key:
-        return key
-    # 3) Try Streamlit secrets (Cloud)
-    try:
-        return st.secrets["OPENAI_API_KEY"]  # raises if not configured
-    except Exception:
-        return None
-
-OPENAI_API_KEY = get_openai_api_key()
-try:
-    ensure_api_key(OPENAI_API_KEY)
-except Exception:
-    st.error(
-        "Missing OpenAI API key. Set it in a local `.env` (OPENAI_API_KEY=...) "
-        "or in Streamlit Cloud → App → Settings → Secrets."
-    )
-    st.stop()
-
-# -----------------------------
-# Generate documented function
-# -----------------------------
-if run:
+if col1.button("📘 Generate documented function"):
     if not description.strip():
         st.warning("Please write a short description of the function.")
     else:
-        with st.spinner("Generating documented function..."):
-            st.session_state.doc_fn = generate_documented_function(
-                description=description,
-                model=model,
-                temperature=temperature,
-                style_extras="",  # future: toggles for docstring style, etc.
-            )
-        # AST syntax check (no execution)  
-        ok, err = check_syntax(st.session_state.doc_fn)
-        st.session_state.doc_fn_ok = ok
-        st.session_state.doc_fn_err = err
-        if ok:
-            st.success("Documented function generated. ✓ Syntax OK")
-        else:
-            st.error(f"Generated function has syntax errors: {err}")
+        generate_doc_fn(description, model, temperature)
 
-# -----------------------------
-# Generate tests
-# -----------------------------
-if gen_tests_btn:
+if col2.button("✅ Generate tests"):
     if not st.session_state.doc_fn.strip():
         st.warning("Generate the documented function first.")
     else:
-        with st.spinner(f"Generating {test_framework} tests..."):
-            st.session_state.tests = generate_tests(
-                documented_code=st.session_state.doc_fn,
-                model=model,
-                temperature=temperature,
-                framework=test_framework,
-            )
-        # AST syntax check for tests (no execution) 
-        ok, err = check_syntax(st.session_state.tests)
-        st.session_state.tests_ok = ok
-        st.session_state.tests_err = err
-        if ok:
-            st.success("Tests generated. ✓ Syntax OK")
-        else:
-            st.error(f"Generated tests have syntax errors: {err}")
+        generate_tests_fn(model, temperature, test_framework)
 
-# -----------------------------
-# Results area (tabs)
-# -----------------------------
+if col3.button("🧹 Clear"):
+    clear_state()
+
+# ---------- Results ----------
 st.markdown("---")
 tabs = st.tabs(["📘 Documented Function", "✅ Tests"])
 
 with tabs[0]:
     if st.session_state.doc_fn:
-        # Status badge  
-        if st.session_state.doc_fn_ok is True:
-            st.caption("✅ Syntax: OK")
-        elif st.session_state.doc_fn_ok is False:
-            st.caption(f"❌ Syntax error: {st.session_state.doc_fn_err}")
-
-        st.code(st.session_state.doc_fn, language="python")
-
-        # --- Download documented function (.py)  
-        base = _sanitize_basename(_infer_function_name(st.session_state.doc_fn) or "generated_function")
-        st.download_button(
-            label="⬇️ Download function (.py)",
-            data=st.session_state.doc_fn,
-            file_name=f"{base}.py",
-            mime="text/x-python",
-            use_container_width=True,
-            disabled=(st.session_state.doc_fn_ok is False),  # deactivate if error
+        def _fname_func(code: str) -> str:
+            base = sanitize_basename(infer_function_name(code) or "generated_function")
+            return f"{base}.py"
+        render_code_tab(
+            st.session_state.doc_fn,
+            st.session_state.doc_fn_ok,
+            st.session_state.doc_fn_err,
+            "⬇️ Download function (.py)",
+            _fname_func,
         )
     else:
         st.info("No documented function yet. Click '📘 Generate documented function'.")
 
 with tabs[1]:
     if st.session_state.tests:
-        # Status badge  
-        if st.session_state.tests_ok is True:
-            st.caption("✅ Syntax: OK")
-        elif st.session_state.tests_ok is False:
-            st.caption(f"❌ Syntax error: {st.session_state.tests_err}")
-
-        st.code(st.session_state.tests, language="python")
-
-        # --- Download tests (.py)  
-        base = _sanitize_basename(_infer_function_name(st.session_state.doc_fn) or "generated_function")
-        test_file = f"test_{base}.py" if test_framework == "pytest" else f"tests_{base}.py"
-        st.download_button(
-            label=f"⬇️ Download {test_framework} tests (.py)",
-            data=st.session_state.tests,
-            file_name=test_file,
-            mime="text/x-python",
-            use_container_width=True,
-            disabled=(st.session_state.tests_ok is False),  # deactivate if error
+        def _test_fname(_: str) -> str:
+            base = sanitize_basename(infer_function_name(st.session_state.doc_fn) or "generated_function")
+            return f"test_{base}.py" if test_framework == "pytest" else f"tests_{base}.py"
+        render_code_tab(
+            st.session_state.tests,
+            st.session_state.tests_ok,
+            st.session_state.tests_err,
+            f"⬇️ Download {test_framework} tests (.py)",
+            _test_fname,
         )
     else:
-        st.info(f"No tests yet. Click '✅ Generate tests'.")
+        st.info("No tests yet. Click '✅ Generate tests'.")
