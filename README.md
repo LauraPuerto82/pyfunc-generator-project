@@ -52,7 +52,7 @@ The code automatically detects if it's running locally or in the cloud.
 -   [x] MVP: pipeline function → doc → tests
 -   [x] Selector unittest/pytest
 -   [x] File download (.py)
--   [ ] Syntax validation (AST) without execution
+-   [x] Syntax validation (AST) without execution
 -   [ ] Docstring styles (Google/NumPy)
 -   [ ] Deploy on Streamlit Cloud + README with screenshots
 

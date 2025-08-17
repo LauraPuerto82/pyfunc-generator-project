@@ -1,5 +1,5 @@
 import os
-import re  # NEW
+import re  
 from typing import get_args
 
 import streamlit as st
@@ -9,9 +9,10 @@ from dotenv import load_dotenv
 from core.types import ModelName
 from core.llm import ensure_api_key
 from core.pipeline import generate_documented_function, generate_tests
+from core.parsing import check_syntax 
 
 # -----------------------------
-# Helpers (filenames)  # NEW
+# Helpers (filenames)
 # -----------------------------
 def _infer_function_name(code: str) -> str | None:
     """Try to infer the first function name from the code."""
@@ -79,12 +80,25 @@ clear = col3.button("🧹 Clear")
 # -----------------------------
 if "doc_fn" not in st.session_state:
     st.session_state.doc_fn = ""
+if "doc_fn_ok" not in st.session_state:         
+    st.session_state.doc_fn_ok = None           
+if "doc_fn_err" not in st.session_state:        
+    st.session_state.doc_fn_err = ""
+
 if "tests" not in st.session_state:
     st.session_state.tests = ""
+if "tests_ok" not in st.session_state:          
+    st.session_state.tests_ok = None
+if "tests_err" not in st.session_state:         
+    st.session_state.tests_err = ""
 
 if clear:
     st.session_state.doc_fn = ""
+    st.session_state.doc_fn_ok = None           
+    st.session_state.doc_fn_err = ""             
     st.session_state.tests = ""
+    st.session_state.tests_ok = None             
+    st.session_state.tests_err = ""              
     st.rerun()
 
 # -----------------------------
@@ -127,7 +141,14 @@ if run:
                 temperature=temperature,
                 style_extras="",  # future: toggles for docstring style, etc.
             )
-        st.success("Documented function generated.")
+        # AST syntax check (no execution)  
+        ok, err = check_syntax(st.session_state.doc_fn)
+        st.session_state.doc_fn_ok = ok
+        st.session_state.doc_fn_err = err
+        if ok:
+            st.success("Documented function generated. ✓ Syntax OK")
+        else:
+            st.error(f"Generated function has syntax errors: {err}")
 
 # -----------------------------
 # Generate tests
@@ -143,7 +164,14 @@ if gen_tests_btn:
                 temperature=temperature,
                 framework=test_framework,
             )
-        st.success("Tests generated.")
+        # AST syntax check for tests (no execution) 
+        ok, err = check_syntax(st.session_state.tests)
+        st.session_state.tests_ok = ok
+        st.session_state.tests_err = err
+        if ok:
+            st.success("Tests generated. ✓ Syntax OK")
+        else:
+            st.error(f"Generated tests have syntax errors: {err}")
 
 # -----------------------------
 # Results area (tabs)
@@ -153,9 +181,15 @@ tabs = st.tabs(["📘 Documented Function", "✅ Tests"])
 
 with tabs[0]:
     if st.session_state.doc_fn:
+        # Status badge  
+        if st.session_state.doc_fn_ok is True:
+            st.caption("✅ Syntax: OK")
+        elif st.session_state.doc_fn_ok is False:
+            st.caption(f"❌ Syntax error: {st.session_state.doc_fn_err}")
+
         st.code(st.session_state.doc_fn, language="python")
 
-        # --- Download documented function (.py)  # NEW
+        # --- Download documented function (.py)  
         base = _sanitize_basename(_infer_function_name(st.session_state.doc_fn) or "generated_function")
         st.download_button(
             label="⬇️ Download function (.py)",
@@ -163,15 +197,22 @@ with tabs[0]:
             file_name=f"{base}.py",
             mime="text/x-python",
             use_container_width=True,
+            disabled=(st.session_state.doc_fn_ok is False),  # deactivate if error
         )
     else:
         st.info("No documented function yet. Click '📘 Generate documented function'.")
 
 with tabs[1]:
     if st.session_state.tests:
+        # Status badge  
+        if st.session_state.tests_ok is True:
+            st.caption("✅ Syntax: OK")
+        elif st.session_state.tests_ok is False:
+            st.caption(f"❌ Syntax error: {st.session_state.tests_err}")
+
         st.code(st.session_state.tests, language="python")
 
-        # --- Download tests (.py)  # NEW
+        # --- Download tests (.py)  
         base = _sanitize_basename(_infer_function_name(st.session_state.doc_fn) or "generated_function")
         test_file = f"test_{base}.py" if test_framework == "pytest" else f"tests_{base}.py"
         st.download_button(
@@ -180,6 +221,7 @@ with tabs[1]:
             file_name=test_file,
             mime="text/x-python",
             use_container_width=True,
+            disabled=(st.session_state.tests_ok is False),  # deactivate if error
         )
     else:
         st.info(f"No tests yet. Click '✅ Generate tests'.")
