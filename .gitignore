@@ -1,0 +1,17 @@
+# Python / venv
+venv/
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# SO / cachés
+.DS_Store
+
+# Entornos y secretos
+.env
+.streamlit/secrets.toml
+
+# IDEs
+.vscode/
+.idea/
