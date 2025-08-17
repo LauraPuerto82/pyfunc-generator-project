@@ -49,9 +49,9 @@ The code automatically detects if it's running locally or in the cloud.
 
 ## Roadmap
 
--   [ ] MVP: pipeline function → doc → tests
--   [ ] Selector unittest/pytest
--   [ ] File download (.py)
+-   [x] MVP: pipeline function → doc → tests
+-   [x] Selector unittest/pytest
+-   [x] File download (.py)
 -   [ ] Syntax validation (AST) without execution
 -   [ ] Docstring styles (Google/NumPy)
 -   [ ] Deploy on Streamlit Cloud + README with screenshots
