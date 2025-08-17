@@ -2,7 +2,7 @@ from typing import get_args
 import streamlit as st
 
 # Local modules
-from core.types import ModelName
+from core.types import ModelName, DocstringStyle
 from core.llm import ensure_api_key
 from core.pipeline import generate_documented_function, generate_tests
 from core.parsing import check_syntax
@@ -27,7 +27,7 @@ def clear_state() -> None:
     st.session_state["tests_ok"] = None
     st.rerun()
 
-def render_sidebar():
+def render_sidebar() -> tuple[ModelName, float, str, DocstringStyle]:  # ⬅️ typed return
     st.sidebar.header("⚙️ Options")
     model_options = list(get_args(ModelName))
     model_cost_info = {
@@ -38,16 +38,32 @@ def render_sidebar():
     }
     model: ModelName = st.sidebar.selectbox("Model", model_options, index=0)  # type: ignore[assignment]
     st.sidebar.caption(model_cost_info.get(model, ""))
+
     temperature: float = st.sidebar.slider("Creativity (temperature)", 0.0, 1.0, 0.2, 0.05)
-    framework = st.sidebar.selectbox("Test framework", ["unittest", "pytest"], index=0)
+    framework: str = st.sidebar.selectbox("Test framework", ["unittest", "pytest"], index=0)
+
+    # Docstring style selector (typed)
+    doc_style_label = st.sidebar.selectbox("Docstring style", ["Google", "NumPy"], index=0)
+    docstring_style: DocstringStyle = "google" if doc_style_label == "Google" else "numpy"  # ⬅️ typed
+
     st.sidebar.markdown("---")
     st.sidebar.caption("Models ordered from cheaper → more expensive")
-    return model, temperature, framework
+    return model, temperature, framework, docstring_style
 
-def generate_doc_fn(description: str, model: ModelName, temperature: float) -> None:
+def generate_doc_fn(
+    description: str,
+    model: ModelName,
+    temperature: float,
+    docstring_style: DocstringStyle,  # ⬅️ typed
+) -> None:
     with st.spinner("Generating documented function..."):
         st.session_state.doc_fn = generate_documented_function(
-            description=description, model=model, temperature=temperature, style_extras=""
+            description=description,
+            model=model,
+            temperature=temperature,
+            style_extras="",
+            docstring_style=docstring_style,  # ⬅️ typed style flows through
+            add_type_hints=True,
         )
     ok, err = check_syntax(st.session_state.doc_fn)
     st.session_state.doc_fn_ok, st.session_state.doc_fn_err = ok, err
@@ -89,7 +105,7 @@ except Exception:
     st.stop()
 
 # ---------- Sidebar / Main ----------
-model, temperature, test_framework = render_sidebar()
+model, temperature, test_framework, docstring_style = render_sidebar()
 
 st.title("🐍 PyFunc Generator")
 st.caption("Generate a documented Python function (docstring + type hints) and tests.")
@@ -105,7 +121,7 @@ if col1.button("📘 Generate documented function"):
     if not description.strip():
         st.warning("Please write a short description of the function.")
     else:
-        generate_doc_fn(description, model, temperature)
+        generate_doc_fn(description, model, temperature, docstring_style)
 
 if col2.button("✅ Generate tests"):
     if not st.session_state.doc_fn.strip():

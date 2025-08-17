@@ -53,7 +53,7 @@ The code automatically detects if it's running locally or in the cloud.
 -   [x] Selector unittest/pytest
 -   [x] File download (.py)
 -   [x] Syntax validation (AST) without execution
--   [ ] Docstring styles (Google/NumPy)
+-   [x] Docstring styles (Google/NumPy)
 -   [ ] Deploy on Streamlit Cloud + README with screenshots
 
 ## License
