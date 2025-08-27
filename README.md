@@ -5,7 +5,7 @@ It returns:
 1. Documented function (with docstrings + type hints)  
 2. Unit tests (**unittest/pytest**)  
 
-**Stack:** Streamlit + LiteLLM (OpenAI)  
+**Stack:** Streamlit + LiteLLM (Gemini)  
 **Status:** Deployed ✅ → [Live Demo](https://laurapuerto-pyfunc-generator.streamlit.app/)
 
 ---
@@ -45,7 +45,7 @@ pip install -r requirements.txt
 # Add your API key (not pushed to repo)
 mkdir -p .streamlit
 # create .streamlit/secrets.toml with:
-# OPENAI_API_KEY = "your_api_key"
+# GEMINI_API_KEY = "your_api_key"
 
 streamlit run app.py
 ```
@@ -57,7 +57,7 @@ streamlit run app.py
 - **Local:** create a `.env` file with:
 
 ```
-OPENAI_API_KEY=your_api_key
+GEMINI_API_KEY=your_api_key
 ```
 
 (this file is ignored by git and not pushed to repo).  

@@ -3,13 +3,13 @@ from litellm import completion
 from .types import Messages, ModelName
 
 def ensure_api_key(api_key: str | None) -> None:
-    """Ensure OPENAI_API_KEY is present in environment for LiteLLM."""
+    """Ensure GEMINI_API_KEY is present in environment for LiteLLM."""
     if not api_key:
         raise ValueError(
             "Missing API key. Add it to `.streamlit/secrets.toml` as "
-            'OPENAI_API_KEY = "your_key" or set the OPENAI_API_KEY env var.'
+            'GEMINI_API_KEY = "your_key" or set the GEMINI_API_KEY env var.'
         )
-    os.environ["OPENAI_API_KEY"] = api_key
+    os.environ["GEMINI_API_KEY"] = api_key
 
 def gen_response(
     messages: Messages,

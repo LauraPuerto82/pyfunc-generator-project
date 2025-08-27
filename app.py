@@ -6,7 +6,7 @@ from core.types import ModelName, DocstringStyle
 from core.llm import ensure_api_key
 from core.pipeline import generate_documented_function, generate_tests
 from core.parsing import check_syntax
-from core.secrets import get_openai_api_key
+from core.secrets import get_gemini_api_key
 from core.filenames import infer_function_name, sanitize_basename
 
 st.set_page_config(page_title="PyFunc Generator", page_icon="🐍", layout="wide")
@@ -31,10 +31,9 @@ def render_sidebar() -> tuple[ModelName, float, str, DocstringStyle]:  # ⬅️ 
     st.sidebar.header("⚙️ Options")
     model_options = list(get_args(ModelName))
     model_cost_info = {
-        "gpt-3.5-turbo": "💲 Cheapest (good for basic tasks)",
-        "o3-mini": "💲 Low cost, better than 3.5",
-        "gpt-4o-mini": "💲💲 Mid-tier, faster and accurate",
-        "gpt-4o": "💲💲💲 Highest quality, most expensive",
+        "gemini/gemini-1.5-flash": "💲 Fast & efficient (good for basic tasks)",
+        "gemini/gemini-1.5-pro": "💲💲 Mid-tier quality",
+        "gemini/gemini-2.0-flash": "💲💲💲 Latest & most capable",
     }
     model: ModelName = st.sidebar.selectbox("Model", model_options, index=0)  # type: ignore[assignment]
     st.sidebar.caption(model_cost_info.get(model, ""))
@@ -47,7 +46,7 @@ def render_sidebar() -> tuple[ModelName, float, str, DocstringStyle]:  # ⬅️ 
     docstring_style: DocstringStyle = "google" if doc_style_label == "Google" else "numpy"  # ⬅️ typed
 
     st.sidebar.markdown("---")
-    st.sidebar.caption("Models ordered from cheaper → more expensive")
+    st.sidebar.caption("Models ordered from faster → higher quality")
     return model, temperature, framework, docstring_style
 
 def generate_doc_fn(
@@ -96,11 +95,11 @@ def render_code_tab(code: str, ok, err, download_label: str, filename_builder) -
 
 # ---------- Init + API key ----------
 init_state()
-OPENAI_API_KEY = get_openai_api_key()
+GEMINI_API_KEY = get_gemini_api_key()
 try:
-    ensure_api_key(OPENAI_API_KEY)
+    ensure_api_key(GEMINI_API_KEY)
 except Exception:
-    st.error("Missing OpenAI API key. Set it in a local `.env` (OPENAI_API_KEY=...) "
+    st.error("Missing Gemini API key. Set it in a local `.env` (GEMINI_API_KEY=...) "
              "or in Streamlit Cloud → App → Settings → Secrets.")
     st.stop()
 

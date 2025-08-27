@@ -1,6 +1,6 @@
 from typing import TypedDict, Literal, List
 
-ModelName = Literal["gpt-3.5-turbo", "o3-mini", "gpt-4o-mini", "gpt-4o"]
+ModelName = Literal["gemini/gemini-1.5-flash", "gemini/gemini-1.5-pro", "gemini/gemini-2.0-flash"]
 TestFramework = Literal["unittest", "pytest"]  
 DocstringStyle = Literal["google", "numpy"]
 
