@@ -11,6 +11,7 @@ from core.filenames import infer_function_name, sanitize_basename
 
 st.set_page_config(page_title="PyFunc Generator", page_icon="🐍", layout="wide")
 
+
 # ---------- Small helpers ----------
 def init_state() -> None:
     st.session_state.setdefault("doc_fn", "")
@@ -20,12 +21,14 @@ def init_state() -> None:
     st.session_state.setdefault("tests_ok", None)
     st.session_state.setdefault("tests_err", "")
 
+
 def clear_state() -> None:
     for k in ("doc_fn", "doc_fn_err", "tests", "tests_err"):
         st.session_state[k] = ""
     st.session_state["doc_fn_ok"] = None
     st.session_state["tests_ok"] = None
     st.rerun()
+
 
 def render_sidebar() -> tuple[ModelName, float, str, DocstringStyle]:  # ⬅️ typed return
     st.sidebar.header("⚙️ Options")
@@ -35,19 +38,28 @@ def render_sidebar() -> tuple[ModelName, float, str, DocstringStyle]:  # ⬅️ 
         "gemini/gemini-1.5-pro": "💲💲 Mid-tier quality",
         "gemini/gemini-2.0-flash": "💲💲💲 Latest & most capable",
     }
-    model: ModelName = st.sidebar.selectbox("Model", model_options, index=0)  # type: ignore[assignment]
+    model: ModelName = st.sidebar.selectbox("Model", model_options, index=2)  # type: ignore[assignment]
     st.sidebar.caption(model_cost_info.get(model, ""))
 
-    temperature: float = st.sidebar.slider("Creativity (temperature)", 0.0, 1.0, 0.2, 0.05)
-    framework: str = st.sidebar.selectbox("Test framework", ["unittest", "pytest"], index=0)
+    temperature: float = st.sidebar.slider(
+        "Creativity (temperature)", 0.0, 1.0, 0.2, 0.05
+    )
+    framework: str = st.sidebar.selectbox(
+        "Test framework", ["unittest", "pytest"], index=0
+    )
 
     # Docstring style selector (typed)
-    doc_style_label = st.sidebar.selectbox("Docstring style", ["Google", "NumPy"], index=0)
-    docstring_style: DocstringStyle = "google" if doc_style_label == "Google" else "numpy"  # ⬅️ typed
+    doc_style_label = st.sidebar.selectbox(
+        "Docstring style", ["Google", "NumPy"], index=0
+    )
+    docstring_style: DocstringStyle = (
+        "google" if doc_style_label == "Google" else "numpy"
+    )  # ⬅️ typed
 
     st.sidebar.markdown("---")
     st.sidebar.caption("Models ordered from faster → higher quality")
     return model, temperature, framework, docstring_style
+
 
 def generate_doc_fn(
     description: str,
@@ -67,19 +79,28 @@ def generate_doc_fn(
     ok, err = check_syntax(st.session_state.doc_fn)
     st.session_state.doc_fn_ok, st.session_state.doc_fn_err = ok, err
     (st.success if ok else st.error)(
-        "Documented function generated. ✓ Syntax OK" if ok else f"Generated function has syntax errors: {err}"
+        "Documented function generated. ✓ Syntax OK"
+        if ok
+        else f"Generated function has syntax errors: {err}"
     )
+
 
 def generate_tests_fn(model: ModelName, temperature: float, framework: str) -> None:
     with st.spinner(f"Generating {framework} tests..."):
         st.session_state.tests = generate_tests(
-            documented_code=st.session_state.doc_fn, model=model, temperature=temperature, framework=framework
+            documented_code=st.session_state.doc_fn,
+            model=model,
+            temperature=temperature,
+            framework=framework,
         )
     ok, err = check_syntax(st.session_state.tests)
     st.session_state.tests_ok, st.session_state.tests_err = ok, err
     (st.success if ok else st.error)(
-        "Tests generated. ✓ Syntax OK" if ok else f"Generated tests have syntax errors: {err}"
+        "Tests generated. ✓ Syntax OK"
+        if ok
+        else f"Generated tests have syntax errors: {err}"
     )
+
 
 def render_code_tab(code: str, ok, err, download_label: str, filename_builder) -> None:
     if ok is True:
@@ -89,9 +110,14 @@ def render_code_tab(code: str, ok, err, download_label: str, filename_builder) -
     st.code(code, language="python")
     fname = filename_builder(code)
     st.download_button(
-        label=download_label, data=code, file_name=fname, mime="text/x-python",
-        use_container_width=True, disabled=(ok is False),
+        label=download_label,
+        data=code,
+        file_name=fname,
+        mime="text/x-python",
+        use_container_width=True,
+        disabled=(ok is False),
     )
+
 
 # ---------- Init + API key ----------
 init_state()
@@ -99,8 +125,10 @@ GEMINI_API_KEY = get_gemini_api_key()
 try:
     ensure_api_key(GEMINI_API_KEY)
 except Exception:
-    st.error("Missing Gemini API key. Set it in a local `.env` (GEMINI_API_KEY=...) "
-             "or in Streamlit Cloud → App → Settings → Secrets.")
+    st.error(
+        "Missing Gemini API key. Set it in a local `.env` (GEMINI_API_KEY=...) "
+        "or in Streamlit Cloud → App → Settings → Secrets."
+    )
     st.stop()
 
 # ---------- Sidebar / Main ----------
@@ -137,9 +165,11 @@ tabs = st.tabs(["📘 Documented Function", "✅ Tests"])
 
 with tabs[0]:
     if st.session_state.doc_fn:
+
         def _fname_func(code: str) -> str:
             base = sanitize_basename(infer_function_name(code) or "generated_function")
             return f"{base}.py"
+
         render_code_tab(
             st.session_state.doc_fn,
             st.session_state.doc_fn_ok,
@@ -152,9 +182,15 @@ with tabs[0]:
 
 with tabs[1]:
     if st.session_state.tests:
+
         def _test_fname(_: str) -> str:
-            base = sanitize_basename(infer_function_name(st.session_state.doc_fn) or "generated_function")
-            return f"test_{base}.py" if test_framework == "pytest" else f"tests_{base}.py"
+            base = sanitize_basename(
+                infer_function_name(st.session_state.doc_fn) or "generated_function"
+            )
+            return (
+                f"test_{base}.py" if test_framework == "pytest" else f"tests_{base}.py"
+            )
+
         render_code_tab(
             st.session_state.tests,
             st.session_state.tests_ok,
